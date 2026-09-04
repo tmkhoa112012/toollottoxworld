@@ -1,0 +1,661 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Xúc Xắc Tự Động — WinHash</title>
+<style>
+  :root{
+    --bg:#0B0D10; --panel:#14171C; --panel2:#191D24; --line:#262B33;
+    --text:#E8EAED; --sub:#8A919C; --gold:#E3B341;
+    --nho:#3FA9F5; --lon:#E5484D; --hoa:#E3B341;
+    --win:#2FBF71; --lose:#E5484D;
+    --radius:14px;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; background:var(--bg); color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    min-height:100vh;
+  }
+  header{
+    padding:22px 24px 16px; border-bottom:1px solid var(--line);
+    display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px;
+    position:sticky; top:0; background:rgba(11,13,16,.92); backdrop-filter:blur(6px); z-index:10;
+  }
+  .brand{display:flex; align-items:baseline; gap:10px;}
+  .brand h1{font-size:19px; margin:0; letter-spacing:.2px;}
+  .brand span{color:var(--sub); font-size:12px;}
+  .global-actions{display:flex; gap:8px; flex-wrap:wrap;}
+  button{
+    font:inherit; cursor:pointer; border-radius:9px; border:1px solid var(--line);
+    background:var(--panel2); color:var(--text); padding:8px 14px; font-size:13px;
+    transition:filter .15s, transform .05s;
+  }
+  button:hover{filter:brightness(1.15);}
+  button:active{transform:scale(.97);}
+  button.primary{background:var(--gold); color:#1a1406; border-color:var(--gold); font-weight:600;}
+  button.danger{background:#3a1417; color:#ffb3b3; border-color:#5a1f24;}
+  button.ghost{background:transparent;}
+  button:disabled{opacity:.4; cursor:not-allowed;}
+
+  main{padding:20px 24px 60px; max-width:1400px; margin:0 auto;}
+  .notice{
+    background:#1a1712; border:1px solid #3a2f16; color:#d9b96a; font-size:12.5px;
+    padding:10px 14px; border-radius:10px; margin-bottom:18px; line-height:1.5;
+  }
+  .grid{
+    display:grid; grid-template-columns:repeat(auto-fit, minmax(340px,1fr)); gap:18px;
+  }
+  .empty-slot{
+    border:1px dashed var(--line); border-radius:var(--radius); min-height:220px;
+    display:flex; align-items:center; justify-content:center; color:var(--sub); font-size:13px;
+    cursor:pointer;
+  }
+  .empty-slot:hover{border-color:#3a4150; color:var(--text);}
+
+  .card{
+    background:var(--panel); border:1px solid var(--line); border-radius:var(--radius);
+    padding:16px 16px 14px; display:flex; flex-direction:column; gap:12px;
+  }
+  .card-head{display:flex; justify-content:space-between; align-items:flex-start; gap:8px;}
+  .acc-name{font-weight:600; font-size:14px;}
+  .acc-id{color:var(--sub); font-size:11.5px; font-family:ui-monospace,Menlo,Consolas,monospace;}
+  .badge{
+    font-size:10.5px; padding:3px 8px; border-radius:20px; font-weight:600; letter-spacing:.3px;
+    border:1px solid transparent;
+  }
+  .badge.off{background:#20242b; color:var(--sub);}
+  .badge.run{background:#0f2b1c; color:var(--win); border-color:#1c4a30;}
+  .badge.rest{background:#2b230f; color:var(--gold); border-color:#4a3c1c;}
+
+  .connect-box{display:flex; flex-direction:column; gap:8px;}
+  .connect-box textarea{
+    width:100%; min-height:52px; resize:vertical; background:var(--panel2); color:var(--text);
+    border:1px solid var(--line); border-radius:9px; padding:9px 10px; font-size:12.5px; font-family:inherit;
+  }
+  .row{display:flex; gap:8px; align-items:center;}
+  .row.wrap{flex-wrap:wrap;}
+
+  .balance-line{display:flex; justify-content:space-between; align-items:baseline;}
+  .balance-line .amt{font-size:20px; font-weight:700; font-variant-numeric:tabular-nums;}
+  .balance-line .profit{font-size:12.5px; font-variant-numeric:tabular-nums;}
+  .profit.pos{color:var(--win);} .profit.neg{color:var(--lose);}
+
+  .dice-area{
+    background:var(--panel2); border-radius:12px; padding:14px; display:flex; flex-direction:column;
+    align-items:center; gap:10px; border:1px solid var(--line);
+  }
+  .dice-row{display:flex; gap:10px;}
+  .die{
+    width:46px; height:46px; border-radius:11px; background:#f4f2ec;
+    display:grid; grid-template-columns:repeat(3,1fr); grid-template-rows:repeat(3,1fr);
+    padding:6px; gap:2px; box-shadow:0 3px 0 rgba(0,0,0,.35), inset 0 0 0 1px rgba(0,0,0,.05);
+    transition:transform .12s;
+  }
+  .die.spinning{animation:spin .5s linear infinite;}
+  .die.settle{animation:settle .35s ease;}
+  @keyframes spin{ 0%{transform:rotate(0deg) scale(1);} 50%{transform:rotate(180deg) scale(1.08);} 100%{transform:rotate(360deg) scale(1);} }
+  @keyframes settle{ 0%{transform:scale(1.25);} 60%{transform:scale(.92);} 100%{transform:scale(1);} }
+  .pip{border-radius:50%; place-self:center; width:7px; height:7px; background:transparent;}
+  .pip.on{background:#1a1c20;}
+  .dice-meta{font-size:12px; color:var(--sub); text-align:center; min-height:16px;}
+  .dice-meta b{color:var(--text);}
+  .dice-meta .outcome-NHO{color:var(--nho); font-weight:700;}
+  .dice-meta .outcome-LON{color:var(--lon); font-weight:700;}
+  .dice-meta .outcome-HOA{color:var(--hoa); font-weight:700;}
+  .countdown{font-size:11px; color:var(--sub); font-variant-numeric:tabular-nums;}
+
+  .stats-line{display:flex; gap:14px; font-size:12px; color:var(--sub); flex-wrap:wrap;}
+  .stats-line b{color:var(--text);}
+
+  fieldset{border:1px solid var(--line); border-radius:10px; padding:10px 12px 12px; margin:0;}
+  legend{font-size:11px; color:var(--sub); padding:0 6px;}
+  .field-grid{display:grid; grid-template-columns:1fr 1fr; gap:8px 10px;}
+  .field{display:flex; flex-direction:column; gap:3px;}
+  .field label{font-size:11px; color:var(--sub);}
+  .field input, .field select{
+    background:var(--panel2); color:var(--text); border:1px solid var(--line); border-radius:7px;
+    padding:6px 8px; font-size:12.5px; font-family:inherit; width:100%;
+  }
+  .field.span2{grid-column:1 / -1;}
+
+  .log-box{
+    background:#0e1013; border:1px solid var(--line); border-radius:9px; padding:8px 10px;
+    height:118px; overflow-y:auto; font-size:11.5px; font-family:ui-monospace,Menlo,Consolas,monospace;
+    line-height:1.6; color:#b7bec7;
+  }
+  .log-box .l-win{color:var(--win);} .log-box .l-lose{color:var(--lose);}
+  .log-box .l-rest{color:var(--gold);} .log-box .l-info{color:var(--sub);}
+
+  .card-actions{display:flex; gap:8px; justify-content:flex-end;}
+  ::-webkit-scrollbar{width:7px;} ::-webkit-scrollbar-thumb{background:#2a2f38; border-radius:4px;}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand">
+    <h1>🎲 Xúc Xắc Tự Động</h1>
+    <span>WinHash · tối đa 3 tài khoản chạy song song</span>
+  </div>
+  <div class="global-actions">
+    <button class="primary" id="btnStartAll">▶️ Chạy tất cả</button>
+    <button class="danger" id="btnStopAll">⏹ Dừng tất cả</button>
+  </div>
+</header>
+
+<main>
+  <div class="notice">
+    ⚠️ Đây là trang chạy hoàn toàn trên trình duyệt của bạn (không có server trung gian) — mỗi tài khoản gọi thẳng API bằng chính mạng/IP của máy đang mở trang. Muốn 3 tài khoản chạy ở 3 IP khác nhau thật sự, hãy mở file này trên 3 máy/trình duyệt (hoặc 3 profile có proxy riêng) khác nhau — bản thân trang này không tự đổi IP giúp bạn. Nếu API báo lỗi mạng/CORS, có thể trình duyệt đang chặn request cross-origin tới api.winhash.net.
+  </div>
+
+  <div class="grid" id="grid"></div>
+</main>
+
+<script>
+const API_BASE = 'https://api.winhash.net';
+const WALLET_URL = 'https://wallet.3games.io/api/wallet/user_asset';
+const BET_IDS = { NHO: 70309, LON: 71218, HOA: 71011 };
+const BET_LABEL = { NHO: 'NHỎ', LON: 'LỚN', HOA: 'HÒA' };
+const MAX_ACCOUNTS = 3;
+const POLL_MS = 1600;
+
+const DICE_LAYOUT = {
+  1:[4], 2:[0,8], 3:[0,4,8], 4:[0,2,6,8], 5:[0,2,4,6,8], 6:[0,2,3,5,6,8]
+};
+
+function diceFaceHTML(v){
+  const active = new Set(DICE_LAYOUT[v] || []);
+  let html = '';
+  for(let i=0;i<9;i++) html += `<span class="pip ${active.has(i)?'on':''}"></span>`;
+  return html;
+}
+
+function fmt(n){ return (Math.round(n*100)/100).toLocaleString('vi-VN', {minimumFractionDigits:2, maximumFractionDigits:2}); }
+function nowStr(){ return new Date().toLocaleTimeString('vi-VN', {hour12:false}); }
+
+function parseLink(text){
+  text = (text||'').trim();
+  let uid=null, skey=null;
+  const mUid = text.match(/userId=([^&\s]+)/);
+  const mSkey = text.match(/secretKey=([^&\s]+)/);
+  if(mUid) uid = decodeURIComponent(mUid[1]);
+  if(mSkey) skey = decodeURIComponent(mSkey[1]);
+  if(!uid || !skey){
+    try{
+      const u = new URL(text);
+      uid = uid || u.searchParams.get('userId') || u.searchParams.get('user_id');
+      skey = skey || u.searchParams.get('secretKey') || u.searchParams.get('secret_key');
+    }catch(e){}
+  }
+  return (uid && skey) ? {userId: uid, secretKey: skey} : null;
+}
+
+function authHeaders(acc){
+  return {
+    'accept':'*/*',
+    'content-type':'application/json',
+    'country-code':'vn',
+    'origin':'https://xworld.info',
+    'referer':'https://xworld.info/',
+    'xb-language':'vi-VN',
+    'user-id': acc.userId,
+    'user-secret-key': acc.secretKey,
+    'user-login':'login_v2',
+  };
+}
+
+async function apiFetchHome(acc){
+  const res = await fetch(`${API_BASE}/lucky_game/home?game_id=1&asset=BUILD`, {headers: authHeaders(acc)});
+  const data = await res.json();
+  if(data && data.code===0 && data.data) return data.data;
+  return null;
+}
+
+async function apiFetchBalance(acc){
+  const res = await fetch(WALLET_URL, {
+    method:'POST', headers: authHeaders(acc),
+    body: JSON.stringify({user_id: parseInt(acc.userId,10), source:'home'})
+  });
+  const data = await res.json();
+  if(data && data.code===0 && data.data){
+    const ua = data.data.user_asset || {};
+    return parseFloat(ua.BUILD || 0);
+  }
+  return null;
+}
+
+async function apiPlaceBet(acc, issueId, betKey, amount){
+  try{
+    const res = await fetch(`${API_BASE}/lucky_game/v2/create_order`, {
+      method:'POST', headers: authHeaders(acc),
+      body: JSON.stringify({game_id:1, issue_id: issueId, items:[{id: BET_IDS[betKey], amount:String(amount), asset:'BUILD'}]})
+    });
+    const data = await res.json();
+    return { ok: data && data.code===0, msg: (data && data.msg) || '' };
+  }catch(e){
+    return { ok:false, msg: String(e) };
+  }
+}
+
+function classify(dice){
+  const [a,b,c] = dice;
+  const total = a+b+c;
+  if(a===b && b===c) return 'HOA';
+  if(total>=3 && total<=10) return 'NHO';
+  return 'LON';
+}
+
+function decideBets(acc){
+  switch(acc.betSide){
+    case 'nho': return ['NHO'];
+    case 'lon': return ['LON'];
+    case 'hoa': return ['HOA'];
+    case 'random_hoa': { const p = Math.random()<0.5 ? 'NHO':'LON'; return [p,'HOA']; }
+    default: { return [ Math.random()<0.5 ? 'NHO':'LON' ]; }
+  }
+}
+
+// ---------- Account object ----------
+let accounts = [];
+let seq = 0;
+
+function makeAccount(){
+  seq++;
+  return {
+    id: seq, connected:false, running:false, busy:false, timer:null, spinInt:null,
+    userId:'', secretKey:'',
+    balance:0, startBalance:0,
+    betSide:'random', baseBet:10, multiplier:1.7, currentBet:10,
+    playBeforeRest:0, restRounds:0, playCount:0,
+    lossLimit:0, lossRest:0, lossStreak:0,
+    resting:false, restLeft:0, restReason:'',
+    pendingIssue:null, lastSeenIssue:null, lastBets:[],
+    win:0, lose:0,
+    el:{}
+  };
+}
+
+function logAcc(acc, text, cls){
+  if(!acc.el.log) return;
+  const line = document.createElement('div');
+  line.className = cls || 'l-info';
+  line.textContent = `[${nowStr()}] ${text}`;
+  acc.el.log.appendChild(line);
+  acc.el.log.scrollTop = acc.el.log.scrollHeight;
+  while(acc.el.log.childNodes.length > 200) acc.el.log.removeChild(acc.el.log.firstChild);
+}
+
+// ---------- Rendering ----------
+function renderGrid(){
+  const grid = document.getElementById('grid');
+  grid.innerHTML = '';
+  accounts.forEach(acc => grid.appendChild(buildCard(acc)));
+  if(accounts.length < MAX_ACCOUNTS){
+    const slot = document.createElement('div');
+    slot.className = 'empty-slot';
+    slot.textContent = `+ Thêm tài khoản (${accounts.length}/${MAX_ACCOUNTS})`;
+    slot.onclick = () => { accounts.push(makeAccount()); renderGrid(); };
+    grid.appendChild(slot);
+  }
+}
+
+function buildCard(acc){
+  const card = document.createElement('div');
+  card.className = 'card';
+
+  card.innerHTML = `
+    <div class="card-head">
+      <div>
+        <div class="acc-name">Tài khoản #${acc.id}</div>
+        <div class="acc-id" data-role="uid">${acc.connected ? acc.userId : 'chưa kết nối'}</div>
+      </div>
+      <span class="badge off" data-role="badge">CHƯA CHẠY</span>
+    </div>
+
+    ${!acc.connected ? `
+    <div class="connect-box">
+      <textarea data-role="linkInput" placeholder="Dán link chứa userId=...&secretKey=..."></textarea>
+      <div class="row">
+        <button class="primary" data-role="btnConnect" style="flex:1">🔗 Kết nối</button>
+        <button class="ghost" data-role="btnRemove">Xoá</button>
+      </div>
+    </div>
+    ` : `
+    <div class="balance-line">
+      <div class="amt" data-role="balance">${fmt(acc.balance)} <span style="font-size:11px;color:var(--sub);font-weight:400;">BUILD</span></div>
+      <div class="profit" data-role="profit">+0.00</div>
+    </div>
+
+    <div class="dice-area">
+      <div class="dice-row" data-role="diceRow">
+        <div class="die" data-role="die0">${diceFaceHTML(1)}</div>
+        <div class="die" data-role="die1">${diceFaceHTML(1)}</div>
+        <div class="die" data-role="die2">${diceFaceHTML(1)}</div>
+      </div>
+      <div class="dice-meta" data-role="diceMeta">Đang chờ vòng cược tiếp theo…</div>
+      <div class="countdown" data-role="countdown"></div>
+    </div>
+
+    <div class="stats-line">
+      <span>Thắng: <b data-role="winCount">0</b></span>
+      <span>Thua: <b data-role="loseCount">0</b></span>
+      <span>Cược hiện tại: <b data-role="curBet">${fmt(acc.baseBet)}</b></span>
+      <span>Chuỗi thua: <b data-role="streak">0</b></span>
+    </div>
+
+    <fieldset>
+      <legend>Cấu hình cược</legend>
+      <div class="field-grid">
+        <div class="field">
+          <label>Cửa cược</label>
+          <select data-role="betSide">
+            <option value="random">Ngẫu nhiên Nhỏ/Lớn</option>
+            <option value="random_hoa">Ngẫu nhiên + lót Hòa</option>
+            <option value="nho">Luôn NHỎ</option>
+            <option value="lon">Luôn LỚN</option>
+            <option value="hoa">Luôn HÒA</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Cược gốc (BUILD)</label>
+          <input type="number" min="0.1" step="0.1" data-role="baseBet" value="${acc.baseBet}">
+        </div>
+        <div class="field">
+          <label>Nhân vốn khi thua (x)</label>
+          <input type="number" min="1" step="0.1" data-role="multiplier" value="${acc.multiplier}">
+        </div>
+        <div class="field"></div>
+        <div class="field">
+          <label>Chơi mấy ván thì nghỉ</label>
+          <input type="number" min="0" step="1" data-role="playBeforeRest" value="${acc.playBeforeRest}" placeholder="0 = tắt">
+        </div>
+        <div class="field">
+          <label>Nghỉ mấy ván (định kỳ)</label>
+          <input type="number" min="0" step="1" data-role="restRounds" value="${acc.restRounds}" placeholder="0 = tắt">
+        </div>
+        <div class="field">
+          <label>Thua liên tiếp mấy ván thì nghỉ</label>
+          <input type="number" min="0" step="1" data-role="lossLimit" value="${acc.lossLimit}" placeholder="0 = tắt">
+        </div>
+        <div class="field">
+          <label>Nghỉ mấy ván (sau chuỗi thua)</label>
+          <input type="number" min="0" step="1" data-role="lossRest" value="${acc.lossRest}" placeholder="0 = tắt">
+        </div>
+      </div>
+    </fieldset>
+
+    <div class="log-box" data-role="log"></div>
+
+    <div class="card-actions">
+      <button class="ghost" data-role="btnRemove">Xoá</button>
+      <button data-role="btnStop">⏹ Dừng</button>
+      <button class="primary" data-role="btnStart">▶️ Chạy</button>
+    </div>
+    `}
+  `;
+
+  // cache elements
+  acc.el.badge = card.querySelector('[data-role="badge"]');
+  if(acc.connected){
+    acc.el.balance = card.querySelector('[data-role="balance"]');
+    acc.el.profit = card.querySelector('[data-role="profit"]');
+    acc.el.dice = [
+      card.querySelector('[data-role="die0"]'),
+      card.querySelector('[data-role="die1"]'),
+      card.querySelector('[data-role="die2"]'),
+    ];
+    acc.el.diceMeta = card.querySelector('[data-role="diceMeta"]');
+    acc.el.countdown = card.querySelector('[data-role="countdown"]');
+    acc.el.winCount = card.querySelector('[data-role="winCount"]');
+    acc.el.loseCount = card.querySelector('[data-role="loseCount"]');
+    acc.el.curBet = card.querySelector('[data-role="curBet"]');
+    acc.el.streak = card.querySelector('[data-role="streak"]');
+    acc.el.log = card.querySelector('[data-role="log"]');
+
+    card.querySelector('[data-role="betSide"]').onchange = e => acc.betSide = e.target.value;
+    card.querySelector('[data-role="baseBet"]').onchange = e => {
+      acc.baseBet = Math.max(0.1, parseFloat(e.target.value)||10);
+      if(!acc.running) acc.currentBet = acc.baseBet;
+    };
+    card.querySelector('[data-role="multiplier"]').onchange = e => acc.multiplier = Math.max(1, parseFloat(e.target.value)||1.7);
+    card.querySelector('[data-role="playBeforeRest"]').onchange = e => acc.playBeforeRest = Math.max(0, parseInt(e.target.value)||0);
+    card.querySelector('[data-role="restRounds"]').onchange = e => acc.restRounds = Math.max(0, parseInt(e.target.value)||0);
+    card.querySelector('[data-role="lossLimit"]').onchange = e => acc.lossLimit = Math.max(0, parseInt(e.target.value)||0);
+    card.querySelector('[data-role="lossRest"]').onchange = e => acc.lossRest = Math.max(0, parseInt(e.target.value)||0);
+
+    card.querySelector('[data-role="btnStart"]').onclick = () => startAccount(acc);
+    card.querySelector('[data-role="btnStop"]').onclick = () => stopAccount(acc);
+    card.querySelectorAll('[data-role="btnRemove"]').forEach(b => b.onclick = () => removeAccount(acc));
+
+    updateBadge(acc);
+  } else {
+    card.querySelector('[data-role="btnConnect"]').onclick = () => connectAccount(acc, card.querySelector('[data-role="linkInput"]').value);
+    card.querySelectorAll('[data-role="btnRemove"]').forEach(b => b.onclick = () => removeAccount(acc));
+  }
+
+  return card;
+}
+
+function updateBadge(acc){
+  if(!acc.el.badge) return;
+  acc.el.badge.classList.remove('off','run','rest');
+  if(!acc.running){ acc.el.badge.classList.add('off'); acc.el.badge.textContent = 'CHƯA CHẠY'; }
+  else if(acc.resting){ acc.el.badge.classList.add('rest'); acc.el.badge.textContent = `NGHỈ (${acc.restLeft})`; }
+  else { acc.el.badge.classList.add('run'); acc.el.badge.textContent = 'ĐANG CHẠY'; }
+}
+
+function refreshStatsUI(acc){
+  if(!acc.el.winCount) return;
+  acc.el.winCount.textContent = acc.win;
+  acc.el.loseCount.textContent = acc.lose;
+  acc.el.curBet.textContent = fmt(acc.currentBet);
+  acc.el.streak.textContent = acc.lossStreak;
+  const profit = acc.balance - acc.startBalance;
+  acc.el.profit.textContent = (profit>=0?'+':'') + fmt(profit);
+  acc.el.profit.classList.remove('pos','neg');
+  acc.el.profit.classList.add(profit>=0?'pos':'neg');
+  acc.el.balance.innerHTML = `${fmt(acc.balance)} <span style="font-size:11px;color:var(--sub);font-weight:400;">BUILD</span>`;
+  updateBadge(acc);
+}
+
+// ---------- Dice animation ----------
+function startSpin(acc){
+  if(!acc.el.dice) return;
+  acc.el.dice.forEach(d => d.classList.add('spinning'));
+  clearInterval(acc.spinInt);
+  acc.spinInt = setInterval(() => {
+    acc.el.dice.forEach(d => d.innerHTML = diceFaceHTML(1 + Math.floor(Math.random()*6)));
+  }, 90);
+}
+
+function settleSpin(acc, finalValues){
+  clearInterval(acc.spinInt);
+  acc.spinInt = null;
+  acc.el.dice.forEach((d, i) => {
+    setTimeout(() => {
+      d.classList.remove('spinning');
+      d.innerHTML = diceFaceHTML(finalValues[i]);
+      d.classList.add('settle');
+      setTimeout(() => d.classList.remove('settle'), 350);
+    }, i * 220);
+  });
+}
+
+// ---------- Connection ----------
+async function connectAccount(acc, linkText){
+  const parsed = parseLink(linkText);
+  if(!parsed){
+    alert('❌ Link không hợp lệ! Cần chứa userId=...&secretKey=...');
+    return;
+  }
+  acc.userId = parsed.userId;
+  acc.secretKey = parsed.secretKey;
+  const bal = await apiFetchBalance(acc);
+  if(bal === null){
+    alert('❌ Không kết nối được — kiểm tra lại link, hoặc trình duyệt đang chặn CORS tới api.winhash.net / wallet.3games.io.');
+    return;
+  }
+  acc.connected = true;
+  acc.balance = bal;
+  acc.startBalance = bal;
+  acc.currentBet = acc.baseBet;
+  renderGrid();
+}
+
+function removeAccount(acc){
+  stopAccount(acc);
+  accounts = accounts.filter(a => a.id !== acc.id);
+  renderGrid();
+}
+
+// ---------- Start / stop ----------
+function startAccount(acc){
+  if(!acc.connected || acc.running) return;
+  acc.running = true;
+  acc.lastSeenIssue = null;
+  logAcc(acc, '🚀 Bắt đầu chạy tool', 'l-info');
+  updateBadge(acc);
+  tick(acc);
+  acc.timer = setInterval(() => tick(acc), POLL_MS);
+}
+
+function stopAccount(acc){
+  acc.running = false;
+  if(acc.timer){ clearInterval(acc.timer); acc.timer = null; }
+  clearInterval(acc.spinInt); acc.spinInt = null;
+  if(acc.el.dice) acc.el.dice.forEach(d => d.classList.remove('spinning'));
+  if(acc.connected){ logAcc(acc, '⏹ Đã dừng tool', 'l-info'); }
+  updateBadge(acc);
+}
+
+document.getElementById('btnStartAll').onclick = () => accounts.forEach(a => a.connected && startAccount(a));
+document.getElementById('btnStopAll').onclick = () => accounts.forEach(a => stopAccount(a));
+
+// ---------- Main loop ----------
+async function tick(acc){
+  if(!acc.running || acc.busy) return;
+  acc.busy = true;
+  try{
+    const home = await apiFetchHome(acc);
+    if(!home){ acc.busy = false; return; }
+
+    const curIssue = home.issue_id;
+    const countdown = home.expire_seconds ?? home.countdown ?? 0;
+    const lastIssueId = home.last_issue_id;
+    const lastDice = home.last_issue_lucky_code;
+
+    if(acc.el.countdown){
+      acc.el.countdown.textContent = acc.pendingIssue
+        ? `Phiên #${String(acc.pendingIssue).slice(-6)} — đang chờ kết quả…`
+        : `Phiên #${String(curIssue).slice(-6)} — còn ${countdown}s`;
+    }
+
+    // đang chờ kết quả của ván đã cược
+    if(acc.pendingIssue != null){
+      if(String(lastIssueId) === String(acc.pendingIssue) && Array.isArray(lastDice) && lastDice.length===3){
+        resolveResult(acc, lastDice);
+        acc.pendingIssue = null;
+      }
+      acc.busy = false;
+      return;
+    }
+
+    // chưa có cược đang chờ — có phiên mới chưa xử lý?
+    if(curIssue !== acc.lastSeenIssue){
+      acc.lastSeenIssue = curIssue;
+
+      if(acc.resting){
+        acc.restLeft -= 1;
+        logAcc(acc, `😴 Đang nghỉ (${acc.restReason}) — còn ${Math.max(acc.restLeft,0)} ván`, 'l-rest');
+        if(acc.restLeft <= 0){
+          acc.resting = false;
+          acc.playCount = 0;
+          logAcc(acc, '▶️ Hết nghỉ, tiếp tục chơi', 'l-info');
+        }
+        updateBadge(acc);
+      } else if(countdown >= 4){
+        await placeRoundBet(acc, curIssue);
+      }
+    }
+  } catch(e){
+    logAcc(acc, `⚠️ Lỗi: ${e}`, 'l-lose');
+  } finally {
+    acc.busy = false;
+  }
+}
+
+async function placeRoundBet(acc, issueId){
+  const bets = decideBets(acc);
+  const label = bets.map(b => BET_LABEL[b]).join(' + ');
+  logAcc(acc, `🌀 Phiên #${String(issueId).slice(-6)} — cược ${label} — ${fmt(acc.currentBet)} BUILD`, 'l-info');
+  startSpin(acc);
+  if(acc.el.diceMeta) acc.el.diceMeta.innerHTML = `Đang quay… dự đoán <b>${label}</b>`;
+
+  let anyOk = false, lastErr = '';
+  for(const b of bets){
+    const r = await apiPlaceBet(acc, issueId, b, acc.currentBet);
+    if(r.ok) anyOk = true; else lastErr = r.msg;
+  }
+  if(!anyOk){
+    clearInterval(acc.spinInt); acc.spinInt = null;
+    if(acc.el.dice) acc.el.dice.forEach(d => d.classList.remove('spinning'));
+    logAcc(acc, `❌ Đặt cược thất bại: ${lastErr}`, 'l-lose');
+    if(/balance|insufficient|số dư/i.test(lastErr)){
+      logAcc(acc, '🛑 Có thể hết số dư — đang dừng tool.', 'l-lose');
+      stopAccount(acc);
+    }
+    return;
+  }
+  acc.pendingIssue = issueId;
+  acc.lastBets = bets;
+}
+
+async function resolveResult(acc, dice){
+  const outcome = classify(dice);
+  const total = dice[0]+dice[1]+dice[2];
+  const isWin = acc.lastBets.includes(outcome);
+  settleSpin(acc, dice);
+
+  acc.playCount++;
+  if(isWin){
+    acc.win++; acc.lossStreak = 0; acc.currentBet = acc.baseBet;
+    logAcc(acc, `✅ THẮNG — Xúc xắc ${dice.join('-')} = ${total} (${BET_LABEL[outcome]})`, 'l-win');
+  } else {
+    acc.lose++; acc.lossStreak++;
+    acc.currentBet = Math.round(acc.currentBet * acc.multiplier * 100) / 100;
+    logAcc(acc, `❌ THUA — Xúc xắc ${dice.join('-')} = ${total} (${BET_LABEL[outcome]})`, 'l-lose');
+    if(acc.lossLimit > 0 && acc.lossStreak >= acc.lossLimit){
+      acc.resting = true;
+      acc.restLeft = acc.lossRest;
+      acc.restReason = 'chuỗi thua';
+      acc.currentBet = acc.baseBet;
+      acc.lossStreak = 0;
+      logAcc(acc, `😴 Thua liên tiếp ${acc.lossLimit} ván → nghỉ ${acc.lossRest} ván`, 'l-rest');
+    }
+  }
+
+  if(!acc.resting && acc.playBeforeRest > 0 && acc.playCount >= acc.playBeforeRest){
+    acc.resting = true;
+    acc.restLeft = acc.restRounds;
+    acc.restReason = 'định kỳ';
+    acc.playCount = 0;
+    logAcc(acc, `😴 Đủ ${acc.playBeforeRest} ván → nghỉ định kỳ ${acc.restRounds} ván`, 'l-rest');
+  }
+
+  if(acc.el.diceMeta){
+    acc.el.diceMeta.innerHTML = `Kết quả: <b>${total}</b> — <span class="outcome-${outcome}">${BET_LABEL[outcome]}</span>`;
+  }
+
+  const bal = await apiFetchBalance(acc);
+  if(bal !== null) acc.balance = bal;
+  refreshStatsUI(acc);
+}
+
+// ---------- init ----------
+accounts.push(makeAccount());
+renderGrid();
+</script>
+</body>
+</html>
